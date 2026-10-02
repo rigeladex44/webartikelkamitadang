@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAMIDATANG Studio — Editor & Multi-Subdomain CMS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS Client & Multi-Tenant Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Inter"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Clean WYSIWYG Editor Typography */
+        #editor-canvas {
+            min-height: 420px;
+            outline: none;
+        }
+        #editor-canvas p {
+            margin-bottom: 1.15rem;
+            line-height: 1.8;
+        }
+        #editor-canvas h2 {
+            font-weight: 700;
+            font-size: 1.3rem;
+            margin-top: 1.6rem;
+            margin-bottom: 0.65rem;
+        }
+        #editor-canvas blockquote {
+            border-left: 4px solid #2563eb;
+            padding: 0.75rem 1.25rem;
+            margin: 1.25rem 0;
+            background-color: rgba(37, 99, 235, 0.06);
+            font-style: italic;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        #editor-canvas ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1.15rem;
+        }
+        #editor-canvas ol {
+            list-style-type: decimal;
+            padding-left: 1.5rem;
+            margin-bottom: 1.15rem;
+        }
+        #editor-canvas li {
+            margin-bottom: 0.35rem;
+            line-height: 1.7;
+        }
+        #editor-canvas:empty:before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased min-h-screen flex flex-col lg:flex-row transition-colors duration-200">
+
+    <!-- MOBILE HEADER -->
+    <div class="lg:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-2.5">
+            <button onclick="toggleMobileSidebar()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+            <div class="w-8 h-8 rounded-lg bg-blue-600 text-white font-extrabold text-sm flex items-center justify-center">KD</div>
+            <div>
+                <span class="font-extrabold text-sm tracking-tight">KAMIDATANG</span><span class="font-extrabold text-sm text-blue-600">STUDIO</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openSupabaseModal()" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300" title="Pengaturan Supabase">
+                <i data-lucide="database" class="w-4 h-4"></i>
+            </button>
+            <button onclick="createNewArticle()" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Tulis</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR OVERLAY (MOBILE) -->
+    <div id="sidebar-backdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/50 z-40 hidden lg:hidden"></div>
+
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <aside id="main-sidebar" class="fixed lg:sticky top-0 left-0 z-50 lg:z-20 w-64 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between -translate-x-full lg:translate-x-0 transition-transform duration-200 shrink-0">
+        <div class="p-4 space-y-4 overflow-y-auto">
+            <!-- Brand Header -->
+            <div class="flex items-center justify-between px-1">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-blue-600 text-white font-extrabold text-base flex items-center justify-center shadow-xs">
+                        KD
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1">
+                            <span class="font-extrabold text-base tracking-tight">KAMIDATANG</span>
+                            <span class="font-extrabold text-base text-blue-600">STUDIO</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium -mt-0.5">Multi-Subdomain CMS</p>
+                    </div>
+                </div>
+                <button onclick="toggleMobileSidebar()" class="lg:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- SUBDOMAIN / MULTI-SITE SELECTOR BAR -->
+            <div class="bg-slate-100 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700 space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-600"></i>
+                        <span>Lingkup Portal:</span>
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="openEditCurrentSiteModal()" id="btn-edit-current-site" class="text-slate-500 hover:text-blue-600 p-0.5 rounded cursor-pointer" title="Pengaturan Subdomain Aktif">
+                            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="switchTab('subdomains')" class="text-blue-600 hover:underline text-[10px] cursor-pointer">+ Tambah</button>
+                    </div>
+                </div>
+                <select id="studio-site-filter" onchange="handleStudioSiteChange(this.value)" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold focus:outline-none focus:border-blue-600 text-slate-800 dark:text-slate-200 cursor-pointer">
+                    <!-- Populated via JS: Semua Portal, Utama, Delta, Desh -->
+                </select>
+            </div>
+
+            <!-- Primary CTA: Tulis Berita -->
+            <button onclick="createNewArticle()" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer">
+                <i data-lucide="pen-square" class="w-4 h-4"></i>
+                <span>Tulis Berita Baru</span>
+            </button>
+
+            <!-- Navigation Menu -->
+            <nav class="space-y-1 text-xs font-semibold">
+                <div class="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Menu Redaksi</div>
+
+                <button onclick="switchTab('editor')" id="nav-editor" class="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="file-edit" class="w-4 h-4"></i>
+                        <span>Editor Artikel</span>
+                    </span>
+                    <span id="editor-dirty-dot" class="w-2 h-2 rounded-full bg-amber-500 hidden" title="Belum disimpan"></span>
+                </button>
+
+                <button onclick="switchTab('posts')" id="nav-posts" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="newspaper" class="w-4 h-4"></i>
+                        <span>Semua Berita</span>
+                    </span>
+                    <span id="nav-count-posts" class="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300">0</span>
+                </button>
+
+                <button onclick="switchTab('headlines')" id="nav-headlines" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="layout-template" class="w-4 h-4"></i>
+                        <span>Atur Headline</span>
+                    </span>
+                </button>
+
+                <button onclick="switchTab('categories')" id="nav-categories" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="folders" class="w-4 h-4"></i>
+                        <span>Kanal & Topik</span>
+                    </span>
+                </button>
+
+                <button onclick="switchTab('comments')" id="nav-comments" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                        <span>Komentar</span>
+                    </span>
+                    <span id="nav-count-comments" class="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300">0</span>
+                </button>
+
+                <div class="pt-2 px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Multi-Site & Cloud</div>
+
+                <!-- Subdomain Management Tab -->
+                <button onclick="switchTab('subdomains')" id="nav-subdomains" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="network" class="w-4 h-4 text-blue-600"></i>
+                        <span>Kelola Subdomain</span>
+                    </span>
+                    <span id="nav-count-sites" class="px-1.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-[10px] text-blue-600 dark:text-blue-300 font-bold">3</span>
+                </button>
+
+                <!-- Supabase Backend Settings Nav Item -->
+                <button onclick="openSupabaseModal()" id="nav-supabase" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="database" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Koneksi Supabase</span>
+                    </span>
+                    <span id="sidebar-db-status-dot" class="w-2 h-2 rounded-full bg-slate-400" title="Status Supabase"></span>
+                </button>
+
+                <!-- Google AdSense & ads.txt Nav Item -->
+                <button onclick="openAdsenseModal()" id="nav-adsense" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="badge-percent" class="w-4 h-4 text-amber-500"></i>
+                        <span>Google AdSense & ads.txt</span>
+                    </span>
+                    <span id="sidebar-adsense-badge" class="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-[10px] text-amber-600 dark:text-amber-400 font-bold">Siap</span>
+                </button>
+
+                <!-- Direct Link to Reader Portal -->
+                <button onclick="openCurrentPortalPreview()" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 transition-colors cursor-pointer">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="external-link" class="w-4 h-4 text-blue-600"></i>
+                        <span id="sidebar-portal-link-text">Buka Portal Aktif</span>
+                    </span>
+                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-slate-400"></i>
+                </button>
+            </nav>
+
+            <!-- Quick Stats Summary Card -->
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    <span id="stat-scope-label">Statistik Portal</span>
+                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-blue-600"></i>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                        <div class="text-[10px] text-slate-400">Tayang</div>
+                        <div id="stat-published" class="text-sm font-extrabold text-emerald-600">0</div>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                        <div class="text-[10px] text-slate-400">Draf</div>
+                        <div id="stat-drafts" class="text-sm font-extrabold text-amber-500">0</div>
+                    </div>
+                </div>
+                <div class="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Total Pembaca:</span>
+                    <span id="stat-views" class="font-bold text-slate-900 dark:text-white">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Bottom Profile & Theme Toggle -->
+        <div class="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">RN</div>
+                    <div>
+                        <div class="text-xs font-bold leading-none">Raka Nusantara</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Pemimpin Redaksi</div>
+                    </div>
+                </div>
+                <button onclick="toggleDarkMode()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer" title="Mode Gelap / Terang">
+                    <i data-lucide="moon" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==========================================================
+         MAIN WORKSPACE AREA
+    =========================================================== -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+        <!-- TOP STICKY ACTION BAR -->
+        <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <h1 id="workspace-title" class="text-sm sm:text-base font-extrabold tracking-tight truncate">Editor Artikel</h1>
+                <span id="editor-status-pill" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    Terbit
+                </span>
+                <!-- Supabase Status Clickable Pill -->
+                <button onclick="openSupabaseModal()" id="top-backend-status-btn" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer" title="Klik untuk mengatur koneksi Supabase">
+                    <span id="top-backend-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                    <span id="top-backend-text">Supabase: Memeriksa...</span>
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2">
+                <!-- Preview Button for active portal -->
+                <button onclick="openCurrentPortalPreview()" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
+                    <i data-lucide="eye" class="w-3.5 h-3.5 text-blue-600"></i>
+                    <span>Lihat Portal</span>
+                </button>
+
+                <div id="editor-header-actions" class="flex items-center gap-2">
+                    <button onclick="toggleZenMode()" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer" title="Mode Fokus Penuh">
+                        <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                        <span id="zen-btn-label">Mode Fokus</span>
+                    </button>
+
+                    <button onclick="openPreviewModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer">
+                        <i data-lucide="layout" class="w-3.5 h-3.5 text-blue-600"></i>
+                        <span>Pratinjau</span>
+                    </button>
+
+                    <button onclick="saveArticle('Draf')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold cursor-pointer">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Simpan Draf</span>
+                    </button>
+
+                    <button onclick="saveArticle('Terbit')" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span id="publish-btn-text">Terbitkan</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- WORKSPACE CONTENT VIEWS -->
+        <main class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">
+
+            <!-- ==========================================================
+                 VIEW 1: STUDIO EDITOR ARTIKEL
+            =========================================================== -->
+            <section id="view-editor" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                <!-- LEFT / CENTER: WRITING CANVAS (8 COLS) -->
+                <div id="editor-main-col" class="lg:col-span-8 space-y-4">
+
+                    <!-- Main Paper Card -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+
+                        <!-- Top Dateline & Word Counter Row -->
+                        <div class="px-5 sm:px-8 pt-6 pb-3 border-b border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="text-slate-400 font-semibold">Lokasi / Dateline:</span>
+                                <input id="input-dateline" type="text" value="JAKARTA, KAMIDATANG" placeholder="JAKARTA, KAMIDATANG" class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 font-bold text-blue-600 text-xs uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-blue-600">
+                            </div>
+                            <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium">
+                                <span><strong id="word-count" class="text-slate-700 dark:text-slate-200">0</strong> kata</span>
+                                <span>•</span>
+                                <span><strong id="char-count" class="text-slate-700 dark:text-slate-200">0</strong> karakter</span>
+                                <span>•</span>
+                                <span>Estimasi baca <strong id="read-time" class="text-slate-700 dark:text-slate-200">1 mnt</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Title & Lead Summary Inputs -->
+                        <div class="px-5 sm:px-8 py-5 space-y-3">
+                            <textarea 
+                                id="input-title" 
+                                rows="2" 
+                                oninput="autoResizeTitle(this); markDirty(); updateSEOPreview();" 
+                                placeholder="Tulis Judul Berita Utama di Sini..." 
+                                class="w-full text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-slate-700 bg-transparent border-none focus:outline-none resize-none leading-tight"
+                            ></textarea>
+
+                            <textarea 
+                                id="input-summary" 
+                                rows="2" 
+                                oninput="markDirty(); updateSEOPreview();" 
+                                placeholder="Tulis ringkasan / teras berita singkat (1–2 kalimat pengantar yang tampil di daftar berita & Google)..." 
+                                class="w-full text-sm text-slate-600 dark:text-slate-300 placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200/70 dark:border-slate-800 focus:outline-none focus:border-blue-600 resize-none leading-relaxed"
+                            ></textarea>
+                        </div>
+
+                        <!-- Sticky Formatting Toolbar -->
+                        <div class="px-4 sm:px-6 py-2 bg-slate-50 dark:bg-slate-800/80 border-y border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex flex-wrap items-center gap-1">
+                                <button type="button" onclick="formatDoc('bold')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Tebal (Bold)">
+                                    <i data-lucide="bold" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick="formatDoc('italic')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Miring (Italic)">
+                                    <i data-lucide="italic" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick="formatDoc('underline')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Garis Bawah">
+                                    <i data-lucide="underline" class="w-4 h-4"></i>
+                                </button>
+
+                                <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></span>
+
+                                <button type="button" onclick="formatHeading()" class="px-2.5 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 cursor-pointer" title="Sub-Judul H2">
+                                    H2 Subjudul
+                                </button>
+                                <button type="button" onclick="insertQuote()" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Kutipan Narasumber">
+                                    <i data-lucide="quote" class="w-4 h-4"></i>
+                                </button>
+
+                                <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></span>
+
+                                <button type="button" onclick="formatDoc('insertUnorderedList')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Daftar Poin">
+                                    <i data-lucide="list" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick="formatDoc('insertOrderedList')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer" title="Daftar Nomor">
+                                    <i data-lucide="list-ordered" class="w-4 h-4"></i>
+                                </button>
+
+                                <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></span>
+
+                                <button type="button" onclick="insertBacaJuga()" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 cursor-pointer" title="Sisipkan Kotak Baca Juga">
+                                    <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+                                    <span>+ Baca Juga</span>
+                                </button>
+
+                                <button type="button" onclick="insertInlineImage()" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer" title="Sisipkan Gambar Berita">
+                                    <i data-lucide="image-plus" class="w-3.5 h-3.5"></i>
+                                    <span>+ Foto</span>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900 p-0.5 rounded-lg text-xs font-semibold">
+                                <button type="button" id="btn-mode-visual" onclick="setEditorMode('visual')" class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs cursor-pointer">Visual</button>
+                                <button type="button" id="btn-mode-html" onclick="setEditorMode('html')" class="px-2.5 py-1 rounded-md text-slate-500 cursor-pointer">HTML</button>
+                            </div>
+                        </div>
+
+                        <!-- Editable Content Canvas -->
+                        <div class="p-5 sm:p-8">
+                            <div 
+                                id="editor-canvas" 
+                                contenteditable="true" 
+                                oninput="handleEditorInput()" 
+                                data-placeholder="Mulai ketik paragraf isi berita di sini..."
+                                class="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200"
+                            ></div>
+                            <textarea 
+                                id="editor-html-source" 
+                                oninput="syncFromHtmlSource()" 
+                                class="w-full h-96 p-4 font-mono text-xs bg-slate-900 text-emerald-400 rounded-lg hidden focus:outline-none"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <!-- SEO Google Snippet Preview Card -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-3 shadow-2xs">
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-blue-600"></i>
+                                <span>Pratinjau Hasil Pencarian Google (SEO)</span>
+                            </div>
+                            <span id="seo-score-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">Skor SEO: Optimal</span>
+                        </div>
+                        <div class="space-y-1 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                            <div class="flex items-center gap-2 text-xs text-slate-500">
+                                <div class="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">KD</div>
+                                <span>kamidatang.id › <span id="seo-preview-cat">nasional</span> › <span id="seo-preview-slug">judul-berita</span></span>
+                            </div>
+                            <h4 id="seo-preview-title" class="text-base sm:text-lg font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer leading-snug">
+                                Judul Berita Utama Tampil di Sini
+                            </h4>
+                            <p id="seo-preview-desc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                                Ringkasan berita akan ditampilkan di sini sebagai meta deskripsi.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT: SIDEBAR INSPECTOR (4 COLS) -->
+                <aside id="editor-inspector-col" class="lg:col-span-4 space-y-5">
+
+                    <!-- Panel 1: Target Subdomain / Portal -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-blue-200 dark:border-blue-900/60 p-5 space-y-3.5 shadow-2xs">
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                            <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+                                <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                                <span>Target Portal Subdomain</span>
+                            </h3>
+                            <span class="text-[10px] text-slate-400">Multi-Site</span>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Tayangkan Pada:</label>
+                            <select id="input-site-slug" onchange="markDirty()" class="w-full px-3 py-2 rounded-lg bg-blue-50/50 dark:bg-slate-800 border border-blue-200 dark:border-blue-900 text-xs font-bold focus:outline-none focus:border-blue-600 text-slate-900 dark:text-slate-100">
+                                <!-- Populated dynamically: Global, Utama, Delta, Desh, dll -->
+                            </select>
+                            <p class="text-[11px] text-slate-400 leading-tight pt-1">
+                                Pilih <strong>Global</strong> agar tayang di semua subdomain sekaligus, atau pilih subdomain khusus.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Status & Headline Flags -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-2xs">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+                            Status & Posisi
+                        </h3>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Status Artikel</label>
+                            <select id="input-status" onchange="markDirty(); updateStatusPill(this.value);" class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-blue-600">
+                                <option value="Terbit">Terbit (Ditampilkan di Portal)</option>
+                                <option value="Draf">Draf (Disimpan Internal)</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                            <label class="flex items-start gap-2.5 cursor-pointer">
+                                <input type="checkbox" id="input-main-headline" onchange="handleHeadlineCheck('main')" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Headline Utama (#1)</div>
+                                    <div class="text-[11px] text-slate-400">Tampil paling besar di bagian atas portal target.</div>
+                                </div>
+                            </label>
+
+                            <label class="flex items-start gap-2.5 cursor-pointer">
+                                <input type="checkbox" id="input-sub-headline" onchange="handleHeadlineCheck('sub')" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Sub-Headline Pendamping</div>
+                                    <div class="text-[11px] text-slate-400">Tampil di slot pendamping sebelah kanan headline.</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: Kanal & Penulis -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-2xs">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+                            Taksonomi Berita
+                        </h3>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Kanal / Rubrik</label>
+                            <select id="input-category" onchange="markDirty(); updateSEOPreview();" class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-blue-600">
+                                <option value="Nasional">Nasional</option>
+                                <option value="Teknologi">Teknologi</option>
+                                <option value="Ekonomi">Ekonomi</option>
+                                <option value="Olahraga">Olahraga</option>
+                                <option value="Gaya Hidup">Gaya Hidup</option>
+                                <option value="Otomotif">Otomotif</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Penulis / Jurnalis</label>
+                            <input id="input-author" type="text" value="Raka Nusantara" oninput="markDirty()" placeholder="Nama Jurnalis..." class="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                        </div>
+
+                        <!-- Tag Manager -->
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Tagar / Topik Terkait</label>
+                            <div class="flex gap-1.5">
+                                <input id="input-new-tag" type="text" placeholder="Tambah tag..." onkeydown="if(event.key==='Enter'){event.preventDefault(); addTagFromInput();}" class="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                                <button type="button" onclick="addTagFromInput()" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold cursor-pointer">Tambah</button>
+                            </div>
+                            <div id="editor-tags-list" class="flex flex-wrap gap-1.5 pt-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: Foto Utama Berita (Featured Image) -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-2xs">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+                            Foto Utama Berita
+                        </h3>
+
+                        <div class="space-y-2">
+                            <div class="w-full h-36 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <img id="inspector-img-preview" src="" alt="Pratinjau Foto" class="w-full h-full object-cover">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-bold text-slate-500">URL Gambar</label>
+                                <input id="input-image" type="text" oninput="updateImagePreview(this.value); markDirty();" placeholder="https://..." class="w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-bold text-slate-500">Keterangan / Caption Foto</label>
+                                <input id="input-caption" type="text" oninput="markDirty()" placeholder="Dokumentasi liputan..." class="w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <span class="text-[11px] text-slate-400 block mb-1">Preset Foto Cepat:</span>
+                                <div class="flex flex-wrap gap-1">
+                                    <button type="button" onclick="setQuickPhoto('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1000&q=80', 'Armada transportasi publik perkotaan modern. (Foto: Dok. KAMIDATANG)')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 text-[11px] font-semibold cursor-pointer">Kota</button>
+                                    <button type="button" onclick="setQuickPhoto('https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', 'Pelaku industri digital memantau sistem operasional. (Foto: KAMIDATANG)')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 text-[11px] font-semibold cursor-pointer">Teknologi</button>
+                                    <button type="button" onclick="setQuickPhoto('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80', 'Pergerakan indeks pasar di layar bursa efek. (Foto: KAMIDATANG)')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 text-[11px] font-semibold cursor-pointer">Ekonomi</button>
+                                    <button type="button" onclick="setQuickPhoto('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80', 'Suasana pertandingan dan latihan di stadion utama. (Foto: KAMIDATANG)')" class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 text-[11px] font-semibold cursor-pointer">Olahraga</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </aside>
+
+            </section>
+
+            <!-- ==========================================================
+                 VIEW 2: DAFTAR SEMUA BERITA
+            =========================================================== -->
+            <section id="view-posts" class="hidden space-y-4">
+                <!-- Search & Filters -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button onclick="setPostFilter('Semua')" id="filter-btn-Semua" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white cursor-pointer">Semua</button>
+                        <button onclick="setPostFilter('Terbit')" id="filter-btn-Terbit" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer">Terbit</button>
+                        <button onclick="setPostFilter('Draf')" id="filter-btn-Draf" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer">Draf</button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <select id="post-cat-filter" onchange="renderPostsTable()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none">
+                            <option value="Semua">Semua Kanal</option>
+                            <option value="Nasional">Nasional</option>
+                            <option value="Teknologi">Teknologi</option>
+                            <option value="Ekonomi">Ekonomi</option>
+                            <option value="Olahraga">Olahraga</option>
+                            <option value="Gaya Hidup">Gaya Hidup</option>
+                            <option value="Otomotif">Otomotif</option>
+                        </select>
+
+                        <div class="relative flex-1 sm:w-64">
+                            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <input id="post-search-input" oninput="renderPostsTable()" type="text" placeholder="Cari judul / penulis..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Articles Table List -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden shadow-2xs" id="posts-table-body">
+                    <!-- Populated via JS -->
+                </div>
+            </section>
+
+            <!-- ==========================================================
+                 VIEW 3: ATUR HEADLINE BERANDA
+            =========================================================== -->
+            <section id="view-headlines" class="hidden space-y-6">
+                <div class="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div class="space-y-0.5">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-600">Pengatur Tata Letak Headline Portal</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-300">Pilih berita mana yang tampil sebagai <strong>Headline Utama (#1)</strong> dan <strong>Sub-Headline</strong> untuk portal yang sedang dipilih.</p>
+                    </div>
+                </div>
+
+                <div id="headline-manager-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+
+            <!-- ==========================================================
+                 VIEW 4: KANAL & TOPIK
+            =========================================================== -->
+            <section id="view-categories" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
+                    <h3 class="text-sm font-extrabold uppercase tracking-tight flex items-center gap-2">
+                        <i data-lucide="folders" class="w-4 h-4 text-blue-600"></i>
+                        <span>Distribusi Berita per Kanal</span>
+                    </h3>
+                    <div id="categories-stats-list" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
+                    <h3 class="text-sm font-extrabold uppercase tracking-tight flex items-center gap-2">
+                        <i data-lucide="hash" class="w-4 h-4 text-blue-600"></i>
+                        <span>Semua Topik / Tagar Aktif</span>
+                    </h3>
+                    <div id="all-tags-manager" class="flex flex-wrap gap-2"></div>
+                </div>
+            </section>
+
+            <!-- ==========================================================
+                 VIEW 5: MODERASI KOMENTAR PEMBACA
+            =========================================================== -->
+            <section id="view-comments" class="hidden space-y-4">
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <h3 class="text-sm font-extrabold uppercase tracking-tight">Daftar Komentar Masuk</h3>
+                        <span class="text-xs text-slate-400">Moderasi langsung komentar pada artikel</span>
+                    </div>
+                    <div id="moderation-comments-list" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+                </div>
+            </section>
+
+            <!-- ==========================================================
+                 VIEW 6: KELOLA MULTI-SUBDOMAIN (SITES MANAGER)
+            =========================================================== -->
+            <section id="view-subdomains" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <div>
+                        <h3 class="text-sm font-extrabold">Daftar Subdomain Portal Aktif</h3>
+                        <p class="text-xs text-slate-500">Setiap subdomain memiliki portal dan tata letak berita sendiri secara otomatis.</p>
+                    </div>
+                    <button onclick="openCreateSiteModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Buat Subdomain Baru</span>
+                    </button>
+                </div>
+
+                <!-- Subdomains Cards Grid -->
+                <div id="subdomains-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ==========================================================
+         MODAL BUAT SUBDOMAIN BARU
+    =========================================================== -->
+    <div id="create-site-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                        <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold">Tambah Subdomain Baru</h3>
+                        <p class="text-[11px] text-slate-400">Portal langsung aktif seketika</p>
+                    </div>
+                </div>
+                <button onclick="closeCreateSiteModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleCreateSite(event)" class="space-y-3.5 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Nama Subdomain Portal *</label>
+                    <input id="site-form-name" type="text" required placeholder="Contoh: KAMIDATANG Delta" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Prefix Subdomain (Slug) *</label>
+                    <div class="flex items-center">
+                        <input id="site-form-slug" type="text" required placeholder="delta" oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '')" class="w-full px-3 py-2 rounded-l-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none focus:border-blue-600">
+                        <span class="px-3 py-2 rounded-r-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono text-[11px] whitespace-nowrap">.kamidatang.com</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Slogan / Tagline Portal</label>
+                    <input id="site-form-tagline" type="text" placeholder="Contoh: Aktual, Berani & Independen" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Inisial Badge Logo</label>
+                        <input id="site-form-badge" type="text" value="KD" maxlength="3" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase focus:outline-none focus:border-blue-600">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Warna Aksen</label>
+                        <input id="site-form-color" type="color" value="#0284c7" class="w-full h-8.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onclick="closeCreateSiteModal()" class="px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold cursor-pointer">Batal</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer">Buat Subdomain</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL PENGATURAN SUBDOMAIN (EDIT SETTINGS)
+    =========================================================== -->
+    <div id="edit-site-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div id="edit-site-header-badge" class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-extrabold text-xs">
+                        KD
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold" id="edit-site-modal-title">Pengaturan Subdomain</h3>
+                        <p class="text-[11px] text-slate-400 font-mono" id="edit-site-domain-display">subdomain.kamidatang.com</p>
+                    </div>
+                </div>
+                <button onclick="closeEditSiteModal()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-edit-site" onsubmit="handleSaveSiteSettings(event)" class="p-6 space-y-4 text-xs">
+                <input type="hidden" id="edit-site-slug">
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Nama Portal Subdomain</label>
+                    <input id="edit-site-name" type="text" required oninput="updateEditSitePreview()" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-blue-600">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Tagline / Slogan Subdomain</label>
+                    <input id="edit-site-tagline" type="text" oninput="updateEditSitePreview()" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600" placeholder="Contoh: Media Berita Terpercaya Kawasan Delta">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700 dark:text-slate-300">Deskripsi / Tentang Portal</label>
+                    <textarea id="edit-site-desc" rows="2" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs focus:outline-none focus:border-blue-600 resize-none" placeholder="Deskripsi ringkas portal edisi ini..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Inisial Badge Logo (Max 3)</label>
+                        <input id="edit-site-badge" type="text" maxlength="3" oninput="updateEditSitePreview()" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold uppercase focus:outline-none focus:border-blue-600">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Warna Aksen Tema</label>
+                        <input id="edit-site-color" type="color" oninput="updateEditSitePreview()" class="w-full h-8.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Live Preview Mini Card -->
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preview Tampilan Brand Portal:</div>
+                    <div class="flex items-center gap-3">
+                        <div id="edit-site-preview-badge" class="w-9 h-9 rounded-lg text-white font-extrabold text-sm flex items-center justify-center shadow-xs bg-blue-600">
+                            KD
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-extrabold text-slate-900 dark:text-white text-xs truncate" id="edit-site-preview-name">KAMIDATANG</span>
+                                <span id="edit-site-preview-subtag" class="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">DELTA</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate" id="edit-site-preview-tagline">Slogan Portal</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" id="btn-preview-from-modal" onclick="previewCurrentEditingPortal()" class="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        <span>Buka Portal Ini</span>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="closeEditSiteModal()" class="px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold cursor-pointer">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer flex items-center gap-1.5">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                            <span>Simpan Perubahan</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL PENGATURAN BACKEND SUPABASE
+    =========================================================== -->
+    <div id="supabase-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8 max-h-[92vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold">Pengaturan Backend Supabase</h3>
+                        <p class="text-[11px] text-slate-400">Sinkronisasi data portal multi-subdomain ke cloud database</p>
+                    </div>
+                </div>
+                <button onclick="closeSupabaseModal()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-5 text-xs">
+
+                <!-- Status Banner -->
+                <div id="supabase-status-alert" class="p-4 rounded-xl border flex items-start gap-3 bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700">
+                    <i id="supabase-alert-icon" data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"></i>
+                    <div class="space-y-0.5">
+                        <div id="supabase-alert-title" class="font-bold text-slate-900 dark:text-white">Status Koneksi Supabase</div>
+                        <div id="supabase-alert-desc" class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                            Masukkan Project URL dan Anon Public Key dari project dashboard Supabase Anda.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Credentials -->
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                            <span>Supabase Project URL</span>
+                            <span class="text-[10px] text-slate-400 font-normal">Contoh: https://xyzcompany.supabase.co</span>
+                        </label>
+                        <input id="input-supabase-url" type="text" placeholder="https://xyzcompany.supabase.co" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none focus:border-blue-600 text-slate-900 dark:text-white">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                            <span>Supabase Anon Public Key</span>
+                            <span class="text-[10px] text-slate-400 font-normal">Kunci publik aman untuk browser</span>
+                        </label>
+                        <input id="input-supabase-key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3.5 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none focus:border-blue-600 text-slate-900 dark:text-white">
+                    </div>
+                </div>
+
+                <!-- Action Buttons: Test Connection & Save -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="testSupabaseConnectionUI()" id="btn-test-supabase" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                        <span>Tes Koneksi</span>
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="exportDataToSupabaseUI()" id="btn-export-supabase" class="px-4 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-bold flex items-center gap-1.5 hover:bg-emerald-100 cursor-pointer" title="Unggah seluruh subdomain & artikel lokal ke database Supabase">
+                            <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                            <span>Ekspor Data ke Supabase</span>
+                        </button>
+
+                        <button type="button" onclick="saveSupabaseSettingsUI()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-xs">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            <span>Simpan Pengaturan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Database Schema Helper Section -->
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <i data-lucide="code" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span>Skema SQL Multi-Subdomain (schema.sql)</span>
+                        </div>
+                        <button onclick="copySQLSchema()" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            <span id="copy-sql-text">Salin Skema SQL</span>
+                        </button>
+                    </div>
+                    <pre class="p-3 rounded-lg bg-slate-900 text-slate-200 text-[11px] font-mono overflow-x-auto max-h-40 border border-slate-800"><code id="sql-schema-preview">-- 1. Buat Tabel Sites (Subdomain)
+CREATE TABLE IF NOT EXISTS public.sites (
+    id BIGINT PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+    slug TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    tagline TEXT,
+    description TEXT,
+    logo_badge TEXT DEFAULT 'KD',
+    theme_color TEXT DEFAULT '#2563eb',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Buat Tabel Articles dengan site_slug
+CREATE TABLE IF NOT EXISTS public.articles (
+    id BIGINT PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+    site_slug TEXT NOT NULL DEFAULT 'main',
+    title TEXT NOT NULL,
+    summary TEXT,
+    category TEXT NOT NULL DEFAULT 'Nasional',
+    tags JSONB DEFAULT '[]'::jsonb,
+    content TEXT NOT NULL,
+    author TEXT DEFAULT 'Redaksi KAMIDATANG',
+    image TEXT,
+    caption TEXT,
+    dateline TEXT DEFAULT 'JAKARTA, KAMIDATANG',
+    status TEXT NOT NULL DEFAULT 'Terbit',
+    is_main_headline BOOLEAN DEFAULT false,
+    is_sub_headline BOOLEAN DEFAULT false,
+    views INTEGER DEFAULT 0,
+    comments JSONB DEFAULT '[]'::jsonb,
+    date TEXT,
+    time_ago TEXT DEFAULT 'Baru saja',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read sites" ON public.sites FOR SELECT USING (true);
+CREATE POLICY "Public write sites" ON public.sites FOR ALL USING (true);
+CREATE POLICY "Public read articles" ON public.articles FOR SELECT USING (true);
+CREATE POLICY "Public write articles" ON public.articles FOR ALL USING (true);</code></pre>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL PENGATURAN GOOGLE ADSENSE & ADS.TXT
+    =========================================================== -->
+    <div id="adsense-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8 max-h-[92vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold">
+                        <i data-lucide="badge-percent" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold">Pengaturan Google AdSense & ads.txt</h3>
+                        <p class="text-[11px] text-slate-400">Monetisasi terintegrasi untuk kamidatang.com & seluruh subdomain</p>
+                    </div>
+                </div>
+                <button onclick="closeAdsenseModal()" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-5 text-xs">
+                <!-- Status Banner -->
+                <div id="adsense-status-alert" class="p-4 rounded-xl border flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-500 mt-0.5 shrink-0"></i>
+                    <div class="space-y-1">
+                        <div class="font-bold text-slate-900 dark:text-white">Google Auto Ads Multi-Subdomain</div>
+                        <div class="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                            Setelah domain utama <strong>kamidatang.com</strong> disetujui Google AdSense, seluruh subdomain tim Anda otomatis menayangkan iklan dengan satu Publisher ID yang sama tanpa perlu review terpisah.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Publisher ID -->
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                            <span>Google AdSense Publisher ID</span>
+                            <span class="text-[10px] text-slate-400 font-normal">Format: ca-pub-XXXXXXXXXXXXXXXX</span>
+                        </label>
+                        <input 
+                            id="input-adsense-pubid" 
+                            type="text" 
+                            oninput="updateAdsensePreview()"
+                            placeholder="Contoh: ca-pub-1234567890123456" 
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs focus:outline-none focus:border-amber-500"
+                        >
+                    </div>
+
+                    <!-- Auto Ads Checkbox -->
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div class="space-y-0.5">
+                            <div class="font-bold text-slate-900 dark:text-white">Aktifkan Google Auto Ads</div>
+                            <div class="text-[11px] text-slate-400">Google AI otomatis menganalisis tata letak berita dan menempatkan iklan terbaik.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="check-adsense-enabled" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File ads.txt Generator -->
+                <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-slate-700 dark:text-slate-200">Isi File ads.txt (Otorisasi Digital Google)</label>
+                        <div class="flex items-center gap-2">
+                            <button onclick="copyAdsTxtContent()" class="text-amber-600 hover:underline font-bold text-[11px] cursor-pointer">📋 Salin Teks</button>
+                            <span>•</span>
+                            <button onclick="downloadAdsTxtFile()" class="text-blue-600 hover:underline font-bold text-[11px] cursor-pointer">💾 Unduh ads.txt</button>
+                        </div>
+                    </div>
+                    <pre class="p-3 rounded-xl bg-slate-900 text-amber-400 font-mono text-[11px] overflow-x-auto border border-slate-800 select-all" id="ads-txt-display">google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0</pre>
+                    <p class="text-[10px] text-slate-400">Tempatkan file <code>ads.txt</code> ini di root direktori hosting web Anda (<code>https://kamidatang.com/ads.txt</code>).</p>
+                </div>
+
+                <!-- Checklist Kepatuhan Review AdSense -->
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                        <span>Checklist Kesiapan Pengajuan Google AdSense:</span>
+                    </div>
+                    <ul class="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-disc list-inside">
+                        <li><strong>Kebijakan Privasi:</strong> Sudah aktif di footer portal (memuat klausul Cookie DART & AdSense).</li>
+                        <li><strong>Pedoman Media Siber & Kontak:</strong> Sudah aktif sesuai standar Dewan Pers.</li>
+                        <li><strong>Isolasi Subdomain:</strong> Subdomain tim fokus pada artikelnya sendiri tanpa distraksi internal.</li>
+                        <li><strong>Auto Ads AI:</strong> Otomatis menyesuaikan perangkat (Mobile & Desktop).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span class="text-[11px] text-slate-400" id="adsense-save-status">Tersimpan di konfigurasi sistem</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeAdsenseModal()" class="px-3.5 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 font-bold cursor-pointer">Tutup</button>
+                    <button type="button" onclick="saveAdsenseSettings()" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold cursor-pointer flex items-center gap-1.5 shadow-xs">
+                        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                        <span>Simpan Pengaturan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRATINJAU PEMBACA -->
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
+            <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2 text-xs font-bold">
+                    <span class="px-2 py-0.5 rounded bg-blue-600 text-[10px] uppercase">Pratinjau Portal</span>
+                    <span>Tampilan di KAMIDATANG</span>
+                </div>
+                <button onclick="closePreviewModal()" class="p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="p-6 sm:p-8 overflow-y-auto space-y-5">
+                <div class="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase">
+                    <span id="preview-cat">Nasional</span>
+                    <span>•</span>
+                    <span id="preview-target-site" class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 font-bold">Portal Utama</span>
+                </div>
+                <h1 id="preview-title" class="text-2xl sm:text-3xl font-extrabold leading-tight"></h1>
+                <p id="preview-summary" class="text-sm sm:text-base text-slate-600 dark:text-slate-300"></p>
+                <div class="text-xs text-slate-500 border-y border-slate-100 dark:border-slate-800 py-2.5">
+                    Oleh <strong id="preview-author" class="text-slate-900 dark:text-white"></strong> • Redaksi KAMIDATANG
+                </div>
+                <figure class="space-y-1.5">
+                    <img id="preview-img" src="" alt="Foto Pratinjau" class="w-full max-h-80 object-cover rounded-lg">
+                    <figcaption id="preview-caption" class="text-xs text-slate-400 italic"></figcaption>
+                </figure>
+                <article id="preview-body" class="space-y-3 text-base leading-relaxed text-slate-800 dark:text-slate-200"></article>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-extrabold">Hapus Berita Ini?</h4>
+                    <p class="text-xs text-slate-500">Artikel akan dihapus dari portal pembaca dan database.</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeDeleteModal()" class="px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer">Batal</button>
+                <button id="confirm-delete-btn" class="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold cursor-pointer">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-box" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // State Variables
+        let sites = [];
+        let activeStudioSite = 'all'; // 'all' (semua), atau 'main', 'delta', 'desh'
+        let articles = [];
+        let currentTab = 'editor';
+        let editingArticleId = null;
+        let currentTags = [];
+        let editorMode = 'visual';
+        let postStatusFilter = 'Semua';
+        let isZenMode = false;
+
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            const el = document.createElement('div');
+            el.className = "pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-semibold shadow-lg border border-slate-700";
+            el.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-blue-400 shrink-0"></i><span>${msg}</span>`;
+            box.appendChild(el);
+            lucide.createIcons();
+            setTimeout(() => el.remove(), 2600);
+        }
+
+        // Memuat Sites (Subdomain)
+        async function fetchSites() {
+            if (window.kamiBackend) {
+                sites = await window.kamiBackend.getSites();
+            } else {
+                sites = [...KAMIDATANG_DEFAULT_SITES];
+            }
+
+            // Update Dropdown Switcher di Sidebar
+            const filterEl = document.getElementById('studio-site-filter');
+            if (filterEl) {
+                filterEl.innerHTML = `
+                    <option value="all">Semua Portal (Global)</option>
+                    ${sites.map(s => `<option value="${s.slug}" ${s.slug === activeStudioSite ? 'selected' : ''}>${s.name} (${s.domain || s.slug})</option>`).join('')}
+                `;
+            }
+
+            // Update Target Site di Inspector Editor
+            const inspectorSiteEl = document.getElementById('input-site-slug');
+            if (inspectorSiteEl) {
+                inspectorSiteEl.innerHTML = `
+                    <option value="global">Global (Tampil di Semua Subdomain)</option>
+                    ${sites.map(s => `<option value="${s.slug}">${s.name} (${s.slug}.kamidatang.com)</option>`).join('')}
+                `;
+            }
+
+            const countEl = document.getElementById('nav-count-sites');
+            if (countEl) countEl.textContent = sites.length;
+            updatePortalLinkText();
+        }
+
+        function updatePortalLinkText() {
+            const el = document.getElementById('sidebar-portal-link-text');
+            if (!el) return;
+            if (activeStudioSite === 'all' || activeStudioSite === 'main') {
+                el.textContent = 'Buka Portal Utama';
+            } else {
+                const s = sites.find(item => item.slug === activeStudioSite);
+                el.textContent = `Buka ${s ? s.name : activeStudioSite}`;
+            }
+        }
+
+        function handleStudioSiteChange(siteSlug) {
+            activeStudioSite = siteSlug;
+            fetchArticlesFromBackend();
+            const activeSite = sites.find(s => s.slug === siteSlug);
+            const label = activeSite ? activeSite.name : 'Semua Portal';
+            showToast(`Beralih ke pengelolaan: ${label}`);
+            updatePortalLinkText();
+        }
+
+        // Buka Portal Aktif
+        function openCurrentPortalPreview(siteSlug) {
+            const targetSlug = siteSlug || (activeStudioSite === 'all' ? 'main' : activeStudioSite);
+            const host = window.location.hostname;
+            const isProduction = host.endsWith('kamidatang.com');
+
+            if (isProduction) {
+                if (targetSlug === 'main') {
+                    window.open('https://kamidatang.com/kamidatang.html', '_blank');
+                } else {
+                    window.open(`https://${targetSlug}.kamidatang.com/kamidatang.html`, '_blank');
+                }
+            } else {
+                const baseHref = window.location.href.split('?')[0].replace(/studio_kamidatang\.html$/, 'kamidatang.html');
+                const targetUrl = targetSlug === 'main' ? baseHref : `${baseHref}?site=${targetSlug}`;
+                window.open(targetUrl, '_blank');
+            }
+        }
+
+        // Memuat artikel dari Backend
+        async function fetchArticlesFromBackend() {
+            if (window.kamiBackend) {
+                articles = await window.kamiBackend.getArticles(false, activeStudioSite);
+            } else {
+                articles = [...KAMIDATANG_DEFAULT_ARTICLES];
+                if (activeStudioSite !== 'all') {
+                    articles = articles.filter(a => a.siteSlug === activeStudioSite || a.siteSlug === 'global');
+                }
+            }
+            updateSidebarStats();
+            updateTopBackendStatus();
+
+            if (currentTab === 'posts') renderPostsTable();
+            if (currentTab === 'headlines') renderHeadlineManager();
+            if (currentTab === 'categories') renderCategoriesView();
+            if (currentTab === 'comments') renderCommentsModeration();
+            if (currentTab === 'subdomains') renderSubdomainsView();
+        }
+
+        async function updateTopBackendStatus() {
+            const dot = document.getElementById('top-backend-dot');
+            const text = document.getElementById('top-backend-text');
+            const sidebarDot = document.getElementById('sidebar-db-status-dot');
+
+            if (window.kamiBackend && window.kamiBackend.isConfigured()) {
+                const res = await window.kamiBackend.testConnection();
+                if (res.ok) {
+                    if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                    if (sidebarDot) sidebarDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                    if (text) text.textContent = "Supabase: Terhubung";
+                } else {
+                    if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-500";
+                    if (sidebarDot) sidebarDot.className = "w-2 h-2 rounded-full bg-amber-500";
+                    if (text) text.textContent = "Supabase: Perlu Perhatian";
+                }
+            } else {
+                if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
+                if (sidebarDot) sidebarDot.className = "w-2 h-2 rounded-full bg-slate-400";
+                if (text) text.textContent = "Supabase: Mode Lokal";
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const views = ['editor', 'posts', 'headlines', 'categories', 'comments', 'subdomains'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.toggle('hidden', v !== tab);
+                const navBtn = document.getElementById(`nav-${v}`);
+                if (navBtn) {
+                    if (v === tab) {
+                        navBtn.className = "w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold transition-colors cursor-pointer";
+                    } else {
+                        navBtn.className = "w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer";
+                    }
+                }
+            });
+
+            const titles = {
+                editor: 'Studio Editor Artikel',
+                posts: 'Manajemen Semua Berita',
+                headlines: 'Pengaturan Headline Beranda',
+                categories: 'Kanal & Topik Berita',
+                comments: 'Moderasi Komentar Pembaca',
+                subdomains: 'Kelola Subdomain Portal'
+            };
+            document.getElementById('workspace-title').textContent = titles[tab] || 'Editor Artikel';
+            document.getElementById('editor-header-actions').classList.toggle('hidden', tab !== 'editor');
+            document.getElementById('editor-status-pill').classList.toggle('hidden', tab !== 'editor');
+
+            if (tab === 'posts') renderPostsTable();
+            if (tab === 'headlines') renderHeadlineManager();
+            if (tab === 'categories') renderCategoriesView();
+            if (tab === 'comments') renderCommentsModeration();
+            if (tab === 'subdomains') renderSubdomainsView();
+
+            document.getElementById('main-sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function updateSidebarStats() {
+            const published = articles.filter(a => a.status === 'Terbit').length;
+            const drafts = articles.filter(a => a.status === 'Draf').length;
+            const totalViews = articles.reduce((acc, a) => acc + (a.views || 0), 0);
+            const totalComments = articles.reduce((acc, a) => acc + (a.comments ? a.comments.length : 0), 0);
+
+            document.getElementById('stat-published').textContent = published;
+            document.getElementById('stat-drafts').textContent = drafts;
+            document.getElementById('stat-views').textContent = totalViews.toLocaleString('id-ID');
+            document.getElementById('nav-count-posts').textContent = articles.length;
+            document.getElementById('nav-count-comments').textContent = totalComments;
+
+            const scopeLabel = document.getElementById('stat-scope-label');
+            if (scopeLabel) {
+                scopeLabel.textContent = activeStudioSite === 'all' ? 'Statistik (Semua Portal)' : `Statistik (${activeStudioSite})`;
+            }
+        }
+
+        function loadArticleIntoEditor(id) {
+            const art = articles.find(a => a.id === Number(id));
+            if (!art) return;
+
+            editingArticleId = art.id;
+            document.getElementById('input-site-slug').value = art.siteSlug || 'main';
+            document.getElementById('input-dateline').value = art.dateline || 'JAKARTA, KAMIDATANG';
+            document.getElementById('input-title').value = art.title;
+            document.getElementById('input-summary').value = art.summary || '';
+            document.getElementById('input-category').value = art.category || 'Nasional';
+            document.getElementById('input-author').value = art.author || 'Redaksi KAMIDATANG';
+            document.getElementById('input-status').value = art.status || 'Terbit';
+            document.getElementById('input-main-headline').checked = !!art.isMainHeadline;
+            document.getElementById('input-sub-headline').checked = !!art.isSubHeadline;
+            document.getElementById('input-image').value = art.image || '';
+            document.getElementById('input-caption').value = art.caption || '';
+            updateImagePreview(art.image);
+
+            document.getElementById('editor-canvas').innerHTML = art.content || '';
+            document.getElementById('editor-html-source').value = art.content || '';
+
+            currentTags = [...(art.tags || [])];
+            renderEditorTags();
+            updateStatusPill(art.status || 'Terbit');
+            updateWordCount();
+            updateSEOPreview();
+            autoResizeTitle(document.getElementById('input-title'));
+            document.getElementById('editor-dirty-dot').classList.add('hidden');
+            switchTab('editor');
+        }
+
+        function createNewArticle() {
+            editingArticleId = null;
+            document.getElementById('input-site-slug').value = activeStudioSite !== 'all' ? activeStudioSite : 'main';
+            document.getElementById('input-dateline').value = 'JAKARTA, KAMIDATANG';
+            document.getElementById('input-title').value = '';
+            document.getElementById('input-summary').value = '';
+            document.getElementById('input-category').value = 'Nasional';
+            document.getElementById('input-author').value = 'Raka Nusantara';
+            document.getElementById('input-status').value = 'Draf';
+            document.getElementById('input-main-headline').checked = false;
+            document.getElementById('input-sub-headline').checked = false;
+            document.getElementById('input-image').value = 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1000&q=80';
+            document.getElementById('input-caption').value = 'Ilustrasi liputan redaksi KAMIDATANG.';
+            updateImagePreview(document.getElementById('input-image').value);
+
+            const initialContent = `<p><strong>JAKARTA, KAMIDATANG</strong> — Tulis paragraf pembuka berita (lead) yang menjawab unsur 5W+1H secara lugas di sini.</p>`;
+            document.getElementById('editor-canvas').innerHTML = initialContent;
+            document.getElementById('editor-html-source').value = initialContent;
+
+            currentTags = ['Berita Terkini'];
+            renderEditorTags();
+            updateStatusPill('Draf');
+            updateWordCount();
+            updateSEOPreview();
+            switchTab('editor');
+            document.getElementById('input-title').focus();
+            showToast("Lembar kerja berita baru siap ditulis.");
+        }
+
+        async function saveArticle(forcedStatus) {
+            const title = document.getElementById('input-title').value.trim();
+            if (!title) {
+                showToast("Mohon isi Judul Berita terlebih dahulu.");
+                document.getElementById('input-title').focus();
+                return;
+            }
+
+            const status = forcedStatus || document.getElementById('input-status').value;
+            document.getElementById('input-status').value = status;
+
+            const isMain = document.getElementById('input-main-headline').checked;
+            const isSub = document.getElementById('input-sub-headline').checked;
+
+            const contentHtml = editorMode === 'visual'
+                ? document.getElementById('editor-canvas').innerHTML
+                : document.getElementById('editor-html-source').value;
+
+            const existingArt = editingArticleId ? articles.find(a => a.id === editingArticleId) : null;
+
+            const payload = {
+                id: editingArticleId || Date.now(),
+                siteSlug: document.getElementById('input-site-slug').value,
+                status: status,
+                isMainHeadline: isMain,
+                isSubHeadline: isSub,
+                dateline: document.getElementById('input-dateline').value.trim(),
+                title: title,
+                summary: document.getElementById('input-summary').value.trim() || "Berita terkini dari redaksi KAMIDATANG.",
+                category: document.getElementById('input-category').value,
+                author: document.getElementById('input-author').value.trim() || "Redaksi KAMIDATANG",
+                image: document.getElementById('input-image').value.trim(),
+                caption: document.getElementById('input-caption').value.trim(),
+                tags: [...currentTags],
+                content: contentHtml,
+                views: existingArt ? (existingArt.views || 0) : 1,
+                comments: existingArt ? (existingArt.comments || []) : [],
+                date: existingArt ? existingArt.date : new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }),
+                timeAgo: "Baru saja"
+            };
+
+            if (window.kamiBackend) {
+                const saved = await window.kamiBackend.saveArticle(payload);
+                editingArticleId = saved.id;
+            }
+
+            await fetchArticlesFromBackend();
+            updateStatusPill(status);
+            document.getElementById('editor-dirty-dot').classList.add('hidden');
+            showToast(status === 'Terbit' ? "Berita berhasil diterbitkan ke portal!" : "Berita disimpan sebagai Draf.");
+        }
+
+        function formatDoc(cmd, value = null) {
+            document.getElementById('editor-canvas').focus();
+            document.execCommand(cmd, false, value);
+            handleEditorInput();
+        }
+
+        function formatHeading() {
+            const canvas = document.getElementById('editor-canvas');
+            canvas.focus();
+            document.execCommand('formatBlock', false, 'H2');
+            handleEditorInput();
+        }
+
+        function insertQuote() {
+            const canvas = document.getElementById('editor-canvas');
+            canvas.focus();
+            const sel = window.getSelection().toString().trim() || 'Tulis kutipan pernyataan narasumber di sini...';
+            document.execCommand('insertHTML', false, `<blockquote>"${sel}"</blockquote><p><br></p>`);
+            handleEditorInput();
+        }
+
+        function insertBacaJuga() {
+            const other = articles.find(a => a.id !== editingArticleId) || articles[0];
+            const html = `<p class="p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border-l-4 border-blue-600 text-xs font-bold">Baca Juga: <a href="#" class="text-blue-600 underline">${other ? other.title : 'Berita Terkait KAMIDATANG'}</a></p><p><br></p>`;
+            const canvas = document.getElementById('editor-canvas');
+            canvas.focus();
+            document.execCommand('insertHTML', false, html);
+            handleEditorInput();
+        }
+
+        function insertInlineImage() {
+            const sampleImg = `<figure class="my-4"><img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80" class="w-full rounded-lg" alt="Ilustrasi Berita"><figcaption class="text-xs text-slate-400 italic mt-1">Ilustrasi dokumentasi lapangan KAMIDATANG.</figcaption></figure><p><br></p>`;
+            const canvas = document.getElementById('editor-canvas');
+            canvas.focus();
+            document.execCommand('insertHTML', false, sampleImg);
+            handleEditorInput();
+            showToast("Gambar ilustrasi disisipkan ke dalam artikel.");
+        }
+
+        function setEditorMode(mode) {
+            editorMode = mode;
+            const canvas = document.getElementById('editor-canvas');
+            const source = document.getElementById('editor-html-source');
+            const btnVis = document.getElementById('btn-mode-visual');
+            const btnHtml = document.getElementById('btn-mode-html');
+
+            if (mode === 'html') {
+                source.value = canvas.innerHTML;
+                canvas.classList.add('hidden');
+                source.classList.remove('hidden');
+                btnHtml.className = "px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs cursor-pointer";
+                btnVis.className = "px-2.5 py-1 rounded-md text-slate-500 cursor-pointer";
+            } else {
+                canvas.innerHTML = source.value;
+                source.classList.add('hidden');
+                canvas.classList.remove('hidden');
+                btnVis.className = "px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs cursor-pointer";
+                btnHtml.className = "px-2.5 py-1 rounded-md text-slate-500 cursor-pointer";
+            }
+        }
+
+        function syncFromHtmlSource() {
+            document.getElementById('editor-canvas').innerHTML = document.getElementById('editor-html-source').value;
+            handleEditorInput();
+        }
+
+        function handleEditorInput() {
+            markDirty();
+            updateWordCount();
+            document.getElementById('editor-html-source').value = document.getElementById('editor-canvas').innerHTML;
+        }
+
+        function updateWordCount() {
+            const text = document.getElementById('editor-canvas').innerText.trim();
+            const words = text ? text.split(/\s+/).length : 0;
+            const chars = text.length;
+            const readMins = Math.max(1, Math.ceil(words / 180));
+
+            document.getElementById('word-count').textContent = words;
+            document.getElementById('char-count').textContent = chars;
+            document.getElementById('read-time').textContent = `${readMins} mnt`;
+        }
+
+        function updateSEOPreview() {
+            const title = document.getElementById('input-title').value.trim() || 'Judul Berita Akan Tampil di Sini';
+            const summary = document.getElementById('input-summary').value.trim() || 'Ringkasan berita (meta description) akan muncul di sini.';
+            const cat = document.getElementById('input-category').value.toLowerCase().replace(/\s+/g, '-');
+            const slug = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '-').slice(0, 45) || 'judul-berita';
+
+            document.getElementById('seo-preview-cat').textContent = cat;
+            document.getElementById('seo-preview-slug').textContent = slug;
+            document.getElementById('seo-preview-title').textContent = title;
+            document.getElementById('seo-preview-desc').textContent = summary;
+
+            const badge = document.getElementById('seo-score-badge');
+            if (title.length > 25 && summary.length > 40) {
+                badge.textContent = "Skor SEO: Optimal (95/100)";
+                badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700";
+            } else {
+                badge.textContent = "Skor SEO: Perlu Dilengkapi";
+                badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700";
+            }
+        }
+
+        function autoResizeTitle(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        function markDirty() {
+            document.getElementById('editor-dirty-dot').classList.remove('hidden');
+        }
+
+        function updateStatusPill(status) {
+            const pill = document.getElementById('editor-status-pill');
+            pill.textContent = status;
+            if (status === 'Terbit') {
+                pill.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300";
+            } else {
+                pill.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300";
+            }
+        }
+
+        function handleHeadlineCheck(type) {
+            if (type === 'main' && document.getElementById('input-main-headline').checked) {
+                document.getElementById('input-sub-headline').checked = false;
+            } else if (type === 'sub' && document.getElementById('input-sub-headline').checked) {
+                document.getElementById('input-main-headline').checked = false;
+            }
+            markDirty();
+        }
+
+        function updateImagePreview(url) {
+            document.getElementById('inspector-img-preview').src = url || 'https://placehold.co/800x450/1e293b/ffffff?text=Foto+Berita';
+        }
+
+        function setQuickPhoto(url, caption) {
+            document.getElementById('input-image').value = url;
+            document.getElementById('input-caption').value = caption;
+            updateImagePreview(url);
+            markDirty();
+        }
+
+        function renderEditorTags() {
+            const container = document.getElementById('editor-tags-list');
+            container.innerHTML = currentTags.map(t => `
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                    #${t}
+                    <button type="button" onclick="removeTag('${t}')" class="hover:text-red-500 cursor-pointer">×</button>
+                </span>
+            `).join('');
+        }
+
+        function addTagFromInput() {
+            const input = document.getElementById('input-new-tag');
+            const val = input.value.trim().replace(/^#/, '');
+            if (val && !currentTags.includes(val)) {
+                currentTags.push(val);
+                renderEditorTags();
+                markDirty();
+            }
+            input.value = '';
+        }
+
+        function removeTag(tag) {
+            currentTags = currentTags.filter(t => t !== tag);
+            renderEditorTags();
+            markDirty();
+        }
+
+        function toggleZenMode() {
+            isZenMode = !isZenMode;
+            const inspector = document.getElementById('editor-inspector-col');
+            const mainCol = document.getElementById('editor-main-col');
+            const label = document.getElementById('zen-btn-label');
+
+            if (isZenMode) {
+                inspector.classList.add('hidden');
+                mainCol.classList.remove('lg:col-span-8');
+                mainCol.classList.add('lg:col-span-12', 'max-w-4xl', 'mx-auto', 'w-full');
+                label.textContent = "Keluar Fokus";
+            } else {
+                inspector.classList.remove('hidden');
+                mainCol.classList.add('lg:col-span-8');
+                mainCol.classList.remove('lg:col-span-12', 'max-w-4xl', 'mx-auto', 'w-full');
+                label.textContent = "Mode Fokus";
+            }
+        }
+
+        function openPreviewModal() {
+            document.getElementById('preview-cat').textContent = document.getElementById('input-category').value;
+            const targetSiteSlug = document.getElementById('input-site-slug').value;
+            const targetSiteObj = sites.find(s => s.slug === targetSiteSlug);
+            document.getElementById('preview-target-site').textContent = targetSiteSlug === 'global' ? 'Tayang Global' : (targetSiteObj ? targetSiteObj.name : targetSiteSlug);
+
+            document.getElementById('preview-title').textContent = document.getElementById('input-title').value || 'Judul Berita Tanpa Nama';
+            document.getElementById('preview-summary').textContent = document.getElementById('input-summary').value;
+            document.getElementById('preview-author').textContent = document.getElementById('input-author').value;
+            document.getElementById('preview-img').src = document.getElementById('input-image').value;
+            document.getElementById('preview-caption').textContent = document.getElementById('input-caption').value;
+            document.getElementById('preview-body').innerHTML = document.getElementById('editor-canvas').innerHTML;
+
+            document.getElementById('preview-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+
+        function setPostFilter(status) {
+            postStatusFilter = status;
+            renderPostsTable();
+        }
+
+        function renderPostsTable() {
+            ['Semua', 'Terbit', 'Draf'].forEach(st => {
+                const btn = document.getElementById(`filter-btn-${st}`);
+                if (st === postStatusFilter) {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white cursor-pointer";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer";
+                }
+            });
+
+            const catFilter = document.getElementById('post-cat-filter').value;
+            const q = document.getElementById('post-search-input').value.toLowerCase().trim();
+
+            const filtered = articles.filter(a => {
+                const matchSt = postStatusFilter === 'Semua' || a.status === postStatusFilter;
+                const matchCat = catFilter === 'Semua' || a.category === catFilter;
+                const matchQ = !q || a.title.toLowerCase().includes(q) || (a.author && a.author.toLowerCase().includes(q));
+                return matchSt && matchCat && matchQ;
+            });
+
+            const container = document.getElementById('posts-table-body');
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-xs text-slate-400">Tidak ada artikel yang sesuai dengan filter.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => {
+                const siteObj = sites.find(s => s.slug === item.siteSlug);
+                const siteBadgeName = item.siteSlug === 'global' ? 'Global' : (siteObj ? siteObj.slug.toUpperCase() : item.siteSlug);
+
+                return `
+                    <div class="p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <div class="flex items-start gap-3.5 min-w-0">
+                            <img src="${item.image}" alt="" onerror="this.src='https://placehold.co/400x260/1e293b/ffffff?text=KAMIDATANG'" class="w-20 h-14 rounded-lg object-cover shrink-0 bg-slate-200">
+                            <div class="space-y-1 min-w-0">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.status === 'Terbit' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${item.status}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.siteSlug === 'global' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'}">${siteBadgeName}</span>
+                                    <span class="text-[11px] font-bold text-slate-500 uppercase">${item.category}</span>
+                                    ${item.isMainHeadline ? `<span class="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold">Headline</span>` : ''}
+                                    ${item.isSubHeadline ? `<span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">Sub-Headline</span>` : ''}
+                                </div>
+                                <h4 onclick="loadArticleIntoEditor(${item.id})" class="text-sm font-bold text-slate-900 dark:text-white hover:text-blue-600 line-clamp-1 cursor-pointer">${item.title}</h4>
+                                <div class="text-[11px] text-slate-400 flex items-center gap-2">
+                                    <span>Oleh ${item.author}</span>
+                                    <span>•</span>
+                                    <span>${(item.views || 0).toLocaleString('id-ID')} dibaca</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <button onclick="loadArticleIntoEditor(${item.id})" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                <span>Edit</span>
+                            </button>
+                            <button onclick="promptDeleteArticle(${item.id})" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer" title="Hapus">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function promptDeleteArticle(id) {
+            const modal = document.getElementById('delete-modal');
+            modal.classList.remove('hidden');
+            document.getElementById('confirm-delete-btn').onclick = async () => {
+                if (window.kamiBackend) {
+                    await window.kamiBackend.deleteArticle(id);
+                }
+                await fetchArticlesFromBackend();
+                closeDeleteModal();
+                renderPostsTable();
+                showToast("Berita telah dihapus.");
+            };
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').classList.add('hidden');
+        }
+
+        function renderHeadlineManager() {
+            const grid = document.getElementById('headline-manager-grid');
+            grid.innerHTML = articles.map(item => `
+                <div class="bg-white dark:bg-slate-900 rounded-xl border ${item.isMainHeadline ? 'border-blue-600 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-800'} p-4 flex flex-col justify-between gap-4">
+                    <div class="flex gap-3.5">
+                        <img src="${item.image}" onerror="this.src='https://placehold.co/400x260/1e293b/ffffff?text=KAMIDATANG'" class="w-20 h-16 rounded-lg object-cover shrink-0">
+                        <div class="space-y-1 min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-bold text-blue-600 uppercase">${item.category}</span>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500">${item.siteSlug}</span>
+                            </div>
+                            <h4 class="text-xs sm:text-sm font-bold leading-snug line-clamp-2">${item.title}</h4>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
+                        <button onclick="setAsMainHeadline(${item.id})" class="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold cursor-pointer ${item.isMainHeadline ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-50'}">
+                            ${item.isMainHeadline ? '✓ Headline Utama (#1)' : 'Jadikan Headline #1'}
+                        </button>
+                        <button onclick="toggleSubHeadline(${item.id})" class="py-1.5 px-3 rounded-lg text-xs font-bold cursor-pointer ${item.isSubHeadline ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}">
+                            ${item.isSubHeadline ? '✓ Sub-Headline' : '+ Sub-Headline'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function setAsMainHeadline(id) {
+            const numId = Number(id);
+            const target = articles.find(a => a.id === numId);
+            if (!target) return;
+
+            for (const a of articles) {
+                if (a.siteSlug === target.siteSlug || a.id === numId) {
+                    a.isMainHeadline = (a.id === numId);
+                    if (a.id === numId) a.isSubHeadline = false;
+
+                    if (window.kamiBackend) {
+                        await window.kamiBackend.saveArticle(a);
+                    }
+                }
+            }
+            await fetchArticlesFromBackend();
+            renderHeadlineManager();
+            showToast("Headline Utama portal diperbarui!");
+        }
+
+        async function toggleSubHeadline(id) {
+            const numId = Number(id);
+            const art = articles.find(a => a.id === numId);
+            if (!art) return;
+            art.isSubHeadline = !art.isSubHeadline;
+            if (art.isSubHeadline) art.isMainHeadline = false;
+
+            if (window.kamiBackend) {
+                await window.kamiBackend.saveArticle(art);
+            }
+            await fetchArticlesFromBackend();
+            renderHeadlineManager();
+            showToast("Status Sub-Headline diperbarui.");
+        }
+
+        function renderCategoriesView() {
+            const cats = ['Nasional', 'Teknologi', 'Ekonomi', 'Olahraga', 'Gaya Hidup', 'Otomotif'];
+            const list = document.getElementById('categories-stats-list');
+            list.innerHTML = cats.map(c => {
+                const count = articles.filter(a => a.category === c).length;
+                return `
+                    <div class="py-3 flex items-center justify-between text-xs">
+                        <span class="font-bold">${c}</span>
+                        <span class="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-semibold">${count} artikel</span>
+                    </div>
+                `;
+            }).join('');
+
+            const allTags = [...new Set(articles.flatMap(a => a.tags || []))];
+            document.getElementById('all-tags-manager').innerHTML = allTags.map(t => `
+                <span class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold">#${t}</span>
+            `).join('');
+        }
+
+        function renderCommentsModeration() {
+            const list = document.getElementById('moderation-comments-list');
+            const flatComments = [];
+            articles.forEach(a => {
+                (a.comments || []).forEach((c, cIdx) => {
+                    flatComments.push({ articleId: a.id, articleTitle: a.title, cIdx, ...c });
+                });
+            });
+
+            if (flatComments.length === 0) {
+                list.innerHTML = `<p class="py-8 text-center text-xs text-slate-400">Belum ada komentar pembaca.</p>`;
+                return;
+            }
+
+            list.innerHTML = flatComments.map(item => `
+                <div class="py-3.5 flex items-start justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="text-xs font-bold">${item.name} <span class="text-slate-400 font-normal">• ${item.city || 'Indonesia'} • ${item.time}</span></div>
+                        <p class="text-xs text-slate-600 dark:text-slate-300">${item.text}</p>
+                        <div class="text-[11px] text-blue-600 font-medium">Pada: ${item.articleTitle}</div>
+                    </div>
+                    <button onclick="deleteCommentUI(${item.articleId}, ${item.cIdx})" class="p-1.5 text-slate-400 hover:text-red-600 cursor-pointer" title="Hapus Komentar">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function deleteCommentUI(articleId, commentIndex) {
+            if (window.kamiBackend) {
+                await window.kamiBackend.deleteComment(articleId, commentIndex);
+            }
+            await fetchArticlesFromBackend();
+            renderCommentsModeration();
+            showToast("Komentar berhasil dimoderasi / dihapus.");
+        }
+
+        // =============================================================
+        // SUBDOMAIN MANAGEMENT VIEW
+        // =============================================================
+        // =============================================================
+        // SUBDOMAIN MANAGEMENT VIEW & SETTINGS
+        // =============================================================
+        let currentEditingSlug = null;
+
+        function renderSubdomainsView() {
+            const container = document.getElementById('subdomains-cards-grid');
+            if (!container) return;
+
+            container.innerHTML = sites.map(s => {
+                const count = articles.filter(a => a.siteSlug === s.slug).length;
+                const isMain = s.slug === 'main';
+
+                return `
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-10 h-10 rounded-xl text-white font-extrabold text-sm flex items-center justify-center shadow-xs" style="background-color: ${s.themeColor || '#2563eb'}">
+                                        ${s.logoBadge || 'KD'}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-extrabold text-sm text-slate-900 dark:text-white">${s.name}</h4>
+                                        <p class="text-[11px] text-blue-600 font-mono font-semibold">${s.slug === 'main' ? 'kamidatang.com' : `${s.slug}.kamidatang.com`}</p>
+                                    </div>
+                                </div>
+                                ${isMain 
+                                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Utama</span>` 
+                                    : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 uppercase">${s.slug}</span>`}
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${s.tagline || s.description || 'Portal subdomain independen KAMIDATANG'}</p>
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                                <span>Konten Spesifik:</span>
+                                <strong class="text-slate-700 dark:text-slate-200 font-bold">${count} berita</strong>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-2">
+                            <button onclick="openCurrentPortalPreview('${s.slug}')" class="flex-1 min-w-[110px] py-1.5 px-3 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer" title="Buka Portal Pembaca di Tab Baru">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                <span>Buka Portal</span>
+                            </button>
+                            <button onclick="openEditSiteModal('${s.slug}')" class="py-1.5 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 cursor-pointer" title="Edit Pengaturan Subdomain">
+                                <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                                <span>Pengaturan</span>
+                            </button>
+                            <button onclick="selectSiteAndManage('${s.slug}')" class="py-1.5 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 cursor-pointer" title="Kelola Artikel Subdomain Ini">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                <span>Artikel</span>
+                            </button>
+                            ${!isMain ? `
+                                <button onclick="deleteSiteUI('${s.slug}')" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer" title="Hapus Subdomain">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function openCreateSiteModal() {
+            document.getElementById('create-site-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCreateSiteModal() {
+            document.getElementById('create-site-modal').classList.add('hidden');
+        }
+
+        async function handleCreateSite(e) {
+            e.preventDefault();
+            const name = document.getElementById('site-form-name').value.trim();
+            const slug = document.getElementById('site-form-slug').value.trim().toLowerCase();
+            const tagline = document.getElementById('site-form-tagline').value.trim();
+            const logoBadge = document.getElementById('site-form-badge').value.trim().toUpperCase() || 'KD';
+            const themeColor = document.getElementById('site-form-color').value;
+
+            if (!name || !slug) return;
+
+            if (sites.some(s => s.slug === slug)) {
+                showToast(`Subdomain '${slug}' sudah ada.`);
+                return;
+            }
+
+            const newSite = {
+                slug,
+                name,
+                tagline,
+                logoBadge,
+                themeColor,
+                domain: `${slug}.kamidatang.com`
+            };
+
+            if (window.kamiBackend) {
+                await window.kamiBackend.saveSite(newSite);
+            }
+
+            await fetchSites();
+            renderSubdomainsView();
+            closeCreateSiteModal();
+            showToast(`Subdomain '${slug}.kamidatang.com' berhasil dibuat & aktif!`);
+        }
+
+        // =============================================================
+        // EDIT SUBDOMAIN SETTINGS FUNCTIONS
+        // =============================================================
+        function openEditCurrentSiteModal() {
+            const slugToEdit = (activeStudioSite && activeStudioSite !== 'all') ? activeStudioSite : 'main';
+            openEditSiteModal(slugToEdit);
+        }
+
+        function openEditSiteModal(slug) {
+            currentEditingSlug = slug;
+            const site = sites.find(s => s.slug === slug);
+            if (!site) return;
+
+            document.getElementById('edit-site-slug').value = site.slug;
+            document.getElementById('edit-site-name').value = site.name || '';
+            document.getElementById('edit-site-tagline').value = site.tagline || '';
+            document.getElementById('edit-site-desc').value = site.description || '';
+            document.getElementById('edit-site-badge').value = site.logoBadge || 'KD';
+            document.getElementById('edit-site-color').value = site.themeColor || '#2563eb';
+
+            document.getElementById('edit-site-modal-title').textContent = `Pengaturan Subdomain: ${site.name}`;
+            document.getElementById('edit-site-domain-display').textContent = site.slug === 'main' ? 'kamidatang.com (Portal Utama)' : `${site.slug}.kamidatang.com`;
+
+            updateEditSitePreview();
+            document.getElementById('edit-site-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function updateEditSitePreview() {
+            const name = document.getElementById('edit-site-name').value || 'Nama Portal';
+            const tagline = document.getElementById('edit-site-tagline').value || 'Slogan Portal';
+            const badge = (document.getElementById('edit-site-badge').value || 'KD').toUpperCase();
+            const color = document.getElementById('edit-site-color').value || '#2563eb';
+            const slug = document.getElementById('edit-site-slug').value || '';
+
+            const badgeEl = document.getElementById('edit-site-preview-badge');
+            if (badgeEl) {
+                badgeEl.textContent = badge;
+                badgeEl.style.backgroundColor = color;
+            }
+
+            const headerBadgeEl = document.getElementById('edit-site-header-badge');
+            if (headerBadgeEl) {
+                headerBadgeEl.textContent = badge;
+                headerBadgeEl.style.backgroundColor = color;
+            }
+
+            const nameEl = document.getElementById('edit-site-preview-name');
+            if (nameEl) nameEl.textContent = name;
+
+            const taglineEl = document.getElementById('edit-site-preview-tagline');
+            if (taglineEl) taglineEl.textContent = tagline;
+
+            const subtagEl = document.getElementById('edit-site-preview-subtag');
+            if (subtagEl) {
+                subtagEl.textContent = slug.toUpperCase();
+                subtagEl.style.backgroundColor = `${color}20`;
+                subtagEl.style.color = color;
+            }
+        }
+
+        function previewCurrentEditingPortal() {
+            if (currentEditingSlug) {
+                openCurrentPortalPreview(currentEditingSlug);
+            }
+        }
+
+        function closeEditSiteModal() {
+            document.getElementById('edit-site-modal').classList.add('hidden');
+        }
+
+        async function handleSaveSiteSettings(e) {
+            e.preventDefault();
+            const slug = document.getElementById('edit-site-slug').value;
+            const name = document.getElementById('edit-site-name').value.trim();
+            const tagline = document.getElementById('edit-site-tagline').value.trim();
+            const description = document.getElementById('edit-site-desc').value.trim();
+            const logoBadge = document.getElementById('edit-site-badge').value.trim().toUpperCase() || 'KD';
+            const themeColor = document.getElementById('edit-site-color').value;
+
+            if (!slug || !name) return;
+
+            const updatedSite = {
+                slug,
+                name,
+                tagline,
+                description,
+                logoBadge,
+                themeColor,
+                domain: slug === 'main' ? 'kamidatang.com' : `${slug}.kamidatang.com`
+            };
+
+            if (window.kamiBackend) {
+                await window.kamiBackend.saveSite(updatedSite);
+            }
+
+            await fetchSites();
+            renderSubdomainsView();
+            closeEditSiteModal();
+            showToast(`Pengaturan portal '${name}' berhasil diperbarui!`);
+        }
+
+        function selectSiteAndManage(slug) {
+            activeStudioSite = slug;
+            const sel = document.getElementById('studio-site-filter');
+            if (sel) sel.value = slug;
+            handleStudioSiteChange(slug);
+            switchTab('posts');
+            const s = sites.find(item => item.slug === slug);
+            showToast(`Beralih ke artikel: ${s ? s.name : slug}`);
+        }
+
+        async function deleteSiteUI(slug) {
+            if (!confirm(`Yakin ingin menghapus subdomain '${slug}.kamidatang.com'?`)) return;
+
+            if (window.kamiBackend) {
+                await window.kamiBackend.deleteSite(slug);
+            }
+            await fetchSites();
+            renderSubdomainsView();
+            showToast(`Subdomain '${slug}' telah dihapus.`);
+        }
+
+        // =============================================================
+        // SUPABASE MODAL FUNCTIONS
+        // =============================================================
+        function openSupabaseModal() {
+            const modal = document.getElementById('supabase-modal');
+            const creds = window.kamiBackend ? window.kamiBackend.getCredentials() : { url: '', key: '' };
+
+            document.getElementById('input-supabase-url').value = creds.url || '';
+            document.getElementById('input-supabase-key').value = creds.key || '';
+
+            modal.classList.remove('hidden');
+            testSupabaseConnectionUI();
+            lucide.createIcons();
+        }
+
+        function closeSupabaseModal() {
+            document.getElementById('supabase-modal').classList.add('hidden');
+        }
+
+        async function testSupabaseConnectionUI() {
+            const url = document.getElementById('input-supabase-url').value.trim();
+            const key = document.getElementById('input-supabase-key').value.trim();
+            const alertBox = document.getElementById('supabase-status-alert');
+            const alertTitle = document.getElementById('supabase-alert-title');
+            const alertDesc = document.getElementById('supabase-alert-desc');
+            const alertIcon = document.getElementById('supabase-alert-icon');
+            const testBtn = document.getElementById('btn-test-supabase');
+
+            testBtn.disabled = true;
+            testBtn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Menguji...</span>`;
+            lucide.createIcons();
+
+            if (!url || !key) {
+                alertBox.className = "p-4 rounded-xl border flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800";
+                alertTitle.textContent = "Supabase Belum Diatur";
+                alertDesc.textContent = "Masukkan Supabase Project URL dan Anon Key untuk menghubungkan database cloud.";
+                alertIcon.className = "w-4 h-4 text-amber-500 mt-0.5 shrink-0";
+                testBtn.disabled = false;
+                testBtn.innerHTML = `<i data-lucide="activity" class="w-3.5 h-3.5"></i><span>Tes Koneksi</span>`;
+                lucide.createIcons();
+                return;
+            }
+
+            if (window.kamiBackend) {
+                window.kamiBackend.setCredentials(url, key);
+                const res = await window.kamiBackend.testConnection();
+
+                if (res.ok) {
+                    alertBox.className = "p-4 rounded-xl border flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800";
+                    alertTitle.textContent = "Koneksi Berhasil & Aktif!";
+                    alertDesc.textContent = res.message;
+                    alertIcon.className = "w-4 h-4 text-emerald-500 mt-0.5 shrink-0";
+                } else {
+                    alertBox.className = "p-4 rounded-xl border flex items-start gap-3 bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800";
+                    alertTitle.textContent = res.tableMissing ? "Tabel Belum Dibuat" : "Koneksi Gagal";
+                    alertDesc.textContent = res.message;
+                    alertIcon.className = "w-4 h-4 text-red-500 mt-0.5 shrink-0";
+                }
+            }
+
+            testBtn.disabled = false;
+            testBtn.innerHTML = `<i data-lucide="activity" class="w-3.5 h-3.5"></i><span>Tes Koneksi</span>`;
+            lucide.createIcons();
+        }
+
+        async function saveSupabaseSettingsUI() {
+            const url = document.getElementById('input-supabase-url').value.trim();
+            const key = document.getElementById('input-supabase-key').value.trim();
+
+            if (window.kamiBackend) {
+                window.kamiBackend.setCredentials(url, key);
+                const res = await window.kamiBackend.testConnection();
+                if (res.ok) {
+                    showToast("Pengaturan Supabase disimpan & terhubung!");
+                } else {
+                    showToast("Pengaturan disimpan (Periksa status koneksi).");
+                }
+            }
+
+            await fetchSites();
+            await fetchArticlesFromBackend();
+            closeSupabaseModal();
+        }
+
+        async function exportDataToSupabaseUI() {
+            const btn = document.getElementById('btn-export-supabase');
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Mengunggah...</span>`;
+            lucide.createIcons();
+
+            if (window.kamiBackend) {
+                const res = await window.kamiBackend.exportLocalToSupabase();
+                showToast(res.message);
+                if (res.ok) {
+                    await fetchSites();
+                    await fetchArticlesFromBackend();
+                }
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i><span>Ekspor Data ke Supabase</span>`;
+            lucide.createIcons();
+        }
+
+        function copySQLSchema() {
+            const code = document.getElementById('sql-schema-preview').innerText;
+            const temp = document.createElement('textarea');
+            temp.value = code;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+
+            const txt = document.getElementById('copy-sql-text');
+            txt.textContent = "Tersalin ✓";
+            showToast("Skema SQL disalin ke clipboard!");
+            setTimeout(() => { txt.textContent = "Salin Skema SQL"; }, 3000);
+        }
+
+        // =============================================================
+        // GOOGLE ADSENSE & ADS.TXT FUNCTIONS
+        // =============================================================
+        function openAdsenseModal() {
+            const modal = document.getElementById('adsense-modal');
+            const cfg = window.kamiBackend ? window.kamiBackend.getAdsenseConfig() : { publisherId: '', autoAds: true, enabled: false };
+
+            document.getElementById('input-adsense-pubid').value = cfg.publisherId || '';
+            document.getElementById('check-adsense-enabled').checked = cfg.enabled !== false;
+            updateAdsensePreview();
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAdsenseModal() {
+            document.getElementById('adsense-modal').classList.add('hidden');
+        }
+
+        function updateAdsensePreview() {
+            const rawPub = document.getElementById('input-adsense-pubid').value.trim();
+            const cleanPub = rawPub.replace(/^ca-/, '').replace(/^pub-/, '');
+            const pubIdStr = cleanPub ? `pub-${cleanPub}` : 'pub-0000000000000000';
+            const displayEl = document.getElementById('ads-txt-display');
+            if (displayEl) {
+                displayEl.textContent = `google.com, ${pubIdStr}, DIRECT, f08c47fec0942fa0`;
+            }
+        }
+
+        function copyAdsTxtContent() {
+            const text = document.getElementById('ads-txt-display').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Isi ads.txt berhasil disalin ke clipboard!");
+            }).catch(() => {
+                showToast("Gagal menyalin teks.");
+            });
+        }
+
+        function downloadAdsTxtFile() {
+            const text = document.getElementById('ads-txt-display').textContent;
+            const blob = new Blob([text + '\n'], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'ads.txt';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast("File ads.txt berhasil diunduh!");
+        }
+
+        function saveAdsenseSettings() {
+            const rawPub = document.getElementById('input-adsense-pubid').value.trim();
+            const enabled = document.getElementById('check-adsense-enabled').checked;
+
+            if (enabled && !rawPub) {
+                showToast("Harap masukkan Publisher ID Google AdSense Anda.");
+                return;
+            }
+
+            const cleanPub = rawPub.startsWith('ca-pub-') ? rawPub : `ca-pub-${rawPub.replace(/^pub-/, '')}`;
+            const cfg = {
+                publisherId: rawPub ? cleanPub : '',
+                autoAds: true,
+                enabled: enabled && !!rawPub
+            };
+
+            if (window.kamiBackend) {
+                window.kamiBackend.saveAdsenseConfig(cfg);
+            }
+
+            updateSidebarAdsenseBadge();
+            closeAdsenseModal();
+            showToast("Pengaturan Google AdSense & ads.txt berhasil disimpan!");
+        }
+
+        function updateSidebarAdsenseBadge() {
+            const badge = document.getElementById('sidebar-adsense-badge');
+            if (!badge) return;
+            const cfg = window.kamiBackend ? window.kamiBackend.getAdsenseConfig() : null;
+            if (cfg && cfg.enabled && cfg.publisherId) {
+                badge.className = "px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold";
+                badge.textContent = "Aktif";
+            } else {
+                badge.className = "px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-[10px] text-amber-600 dark:text-amber-400 font-bold";
+                badge.textContent = "Siap";
+            }
+        }
+
+        function toggleMobileSidebar() {
+            document.getElementById('main-sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.toggle('hidden');
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        window.onload = async function () {
+            await fetchSites();
+            await fetchArticlesFromBackend();
+            updateSidebarAdsenseBadge();
+            if (articles.length > 0) {
+                loadArticleIntoEditor(articles[0].id);
+            } else {
+                createNewArticle();
+            }
+
+            if (window.kamiBackend) {
+                window.kamiBackend.subscribeToChanges(async (type, payload) => {
+                    console.log(`[Studio Realtime] ${type} update:`, payload);
+                    if (type === 'sites') await fetchSites();
+                    await fetchArticlesFromBackend();
+                });
+            }
+
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
