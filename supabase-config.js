@@ -223,26 +223,41 @@ class KamiDatangBackend {
 
     // Mendeteksi subdomain aktif saat ini
     getCurrentSubdomain() {
-        // 1. Prioritas utama: Parameter URL (?site=delta atau ?site=desh) untuk testing lokal/development
         if (typeof window !== 'undefined' && window.location) {
+            // 1. Prioritas utama: Parameter URL (?site=delta atau ?site=desh) untuk testing
             const urlParams = new URLSearchParams(window.location.search);
             const siteParam = urlParams.get('site');
             if (siteParam) return siteParam.toLowerCase().trim();
 
-            // 2. Deteksi otomatis dari Hostname domain produksi (misal: delta.kamidatang.com)
-            const hostname = window.location.hostname || '';
-            const parts = hostname.split('.');
+            const hostname = (window.location.hostname || '').toLowerCase();
 
-            // Jika formatnya <subdomain>.kamidatang.com dan bukan 'www'
-            if (parts.length >= 3) {
-                const sub = parts[0].toLowerCase();
-                if (sub !== 'www' && sub !== 'studio') {
-                    return sub;
+            // 2. Domain deployment preview (Vercel, Netlify, Cloudflare Pages, localhost) -> selalu 'main'
+            if (
+                hostname.endsWith('.vercel.app') || 
+                hostname.endsWith('.netlify.app') || 
+                hostname.endsWith('.pages.dev') || 
+                hostname.endsWith('.github.io') ||
+                hostname === 'localhost' || 
+                hostname === '127.0.0.1'
+            ) {
+                return 'main';
+            }
+
+            // 3. Domain produksi custom kamidatang.com
+            if (hostname.endsWith('kamidatang.com')) {
+                const parts = hostname.split('.');
+                // Jika formatnya <subdomain>.kamidatang.com (misal: delta.kamidatang.com)
+                if (parts.length >= 3) {
+                    const sub = parts[0];
+                    if (sub !== 'www' && sub !== 'studio') {
+                        return sub;
+                    }
                 }
+                return 'main';
             }
         }
 
-        // 3. Fallback default: 'main' (Portal Utama)
+        // 4. Fallback default: 'main' (Portal Utama)
         return 'main';
     }
 
