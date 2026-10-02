@@ -3,15 +3,15 @@
   "rewrites": [
     {
       "source": "/studio",
-      "destination": "/studio_kamidatang.html"
+      "destination": "/studio_kamidatang"
+    },
+    {
+      "source": "/admin",
+      "destination": "/studio_kamidatang"
     },
     {
       "source": "/ads.txt",
       "destination": "/ads.txt"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ],
   "headers": [
